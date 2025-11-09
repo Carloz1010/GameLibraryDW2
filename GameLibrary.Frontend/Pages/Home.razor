@@ -1,0 +1,205 @@
+﻿@page "/"
+@using GameLibrary.Domain.DTOs
+@using GameLibrary.Domain.Enums
+@using GameLibrary.Frontend.Services
+@inject IGameService GameService
+
+<PageTitle>Game Library</PageTitle>
+
+<h1 class="mb-4">Biblioteca de Juegos</h1>
+
+<EditForm Model="@newGame" OnValidSubmit="CreateGameAsync" class="border rounded p-4 mb-4 bg-light">
+	<DataAnnotationsValidator />
+	<ValidationSummary />
+
+	<div class="form-group mb-2">
+		<label>SKU:</label>
+		<InputText @bind-Value="newGame.SKU" class="form-control"/>
+	</div>
+	<div class="form-group mb-2">
+		<label>Título:</label>
+		<InputText @bind-Value="newGame.Title" class="form-control" />
+	</div>
+	<div class="form-group mb-2">
+		<label>Descripción:</label>
+		<InputText @bind-Value="newGame.Description" class="form-control" />
+	</div>
+	<div class="form-group mb-2">
+		<label>Plataforma:</label>
+		<InputSelect @bind-Value="newGame.Platform" class="form-control">
+			@foreach (var value in Enum.GetValues(typeof(GamePlatform)))
+			{
+				<option value="@((int)value)">
+					@Enum.GetName(typeof(GamePlatform), value)
+				</option>
+			}
+		</InputSelect>
+	</div>
+	<div class="form-group mb-2">
+		<label>Región:</label>
+		<InputSelect @bind-Value="newGame.Region" class="form-control">
+			@foreach (var value in Enum.GetValues(typeof(GameRegion)))
+			{
+				<option value="@((int)value)">
+					@Enum.GetName(typeof(GameRegion), value)
+				</option>
+			}
+		</InputSelect>
+	</div>
+	<div class="form-group mb-2">
+		<label>Formato:</label>
+		<InputSelect @bind-Value="newGame.Format" class="form-control">
+			@foreach (var value in Enum.GetValues(typeof(GameFormat)))
+			{
+				<option value="@((int)value)">
+					@Enum.GetName(typeof(GameFormat), value)
+				</option>
+			}
+		</InputSelect>
+	</div>
+	<div class="form-group mb-2">
+		<label>Género:</label>
+		<InputText @bind-Value="newGame.Genre" class="form-control" />
+	</div>
+	<div class="form-group mb-2">
+		<label>Desarrollador:</label>
+		<InputText @bind-Value="newGame.Developer" class="form-control" />
+	</div>
+	<div class="form-group mb-2">
+		<label>Fecha de Lanzamiento:</label>
+		<InputDate @bind-Value="newGame.ReleaseDate" class="form-control" />
+	</div>
+	<button type="submit" class="btn btn-primary mt-2">Crear Juego</button>
+</EditForm>
+
+@if(!string.IsNullOrEmpty(createGameMessage))
+{
+	<div class="alert alert-info mt-2">@createGameMessage</div>
+}
+
+<hr />
+
+<h2 class="mb-4">Buscar Juego por SKU</h2>
+<div class="form-inline mb-3">
+	<InputText @bind-Value="searchGameSKU" placeholder="Ingrese SKU" class="form-control mr-2"/>
+	<button class="btn btn-secondary" @onclick="SearchGameAsync">Buscar</button>
+</div>
+
+@if (searchedGame != null)
+{
+	<div class="card mb-3">
+		<div class="card-body">
+			<h5 class="card-title">Juego Encontrado:</h5>
+			<p class="card-text"><strong>SKU:</strong> @searchedGame.SKU</p>
+			<p class="card-text"><strong>Título:</strong> @searchedGame.Title</p>
+			<p class="card-text"><strong>Descripción:</strong> @searchedGame.Description</p>
+			<p class="card-text"><strong>Plataforma:</strong> @searchedGame.Platform.ToString()</p>
+			<p class="card-text"><strong>Región:</strong> @searchedGame.Region.ToString()</p>
+			<p class="card-text"><strong>Formato:</strong> @searchedGame.Format.ToString()</p>
+			<p class="card-text"><strong>Género:</strong> @searchedGame.Genre</p>
+			<p class="card-text"><strong>Desarrollador:</strong> @searchedGame.Developer</p>
+		</div>
+	</div>
+}
+else if (searchGameSKU != null && searchGameError != null)
+{
+	<div class="alert alert-danger">@searchGameError</div>
+}
+
+<hr />
+
+<h2 class="mb-4">Lista de Juegos</h2>
+<button class="btn btn-succes mb-2" @onclick="LoadGamesAsync">Actualizar Lista</button>
+@if (games == null)
+{
+	<p>Cargando juegos...</p>
+}
+else if (!games.Any())
+{
+	<p>No hay juegos registrados.</p>
+}
+else
+{
+	<table class="table table-striped table-bordered">
+		<thead class="thead-dark">
+			<tr>
+				<th>SKU</th>
+				<th>Título</th>
+				<th>Descripción</th>
+				<th>Plataforma</th>
+				<th>Región</th>
+				<th>Formato</th>
+				<th>Género</th>
+				<th>Desarrollador</th>
+				<th>Fecha de Lanzamiento</th>
+			</tr>
+		</thead>
+		<tbody>
+			@foreach (var game in games)
+			{
+				<tr>
+					<td>@game.SKU</td>
+					<td>@game.Title</td>
+					<td>@game.Description</td>
+					<td>@game.Platform.ToString()</td>
+					<td>@game.Region.ToString()</td>
+					<td>@game.Format.ToString()</td>
+					<td>@game.Genre</td>
+					<td>@game.Developer</td>
+					<td>@game.ReleaseDate.ToShortDateString()</td>
+				</tr>
+			}
+		</tbody>
+	</table>
+}
+
+@code {
+	private CreateGameDTO newGame = new CreateGameDTO();
+	private string? createGameMessage;
+	private string? searchGameSKU;
+	private GameResponseDTO? searchedGame;
+	private string? searchGameError;
+	private List<GameResponseDTO>? games;
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadGamesAsync();
+	}
+
+	private async Task LoadGamesAsync()
+	{
+		var url = "api/games";
+		games = (await GameService.GetAsync<List<GameResponseDTO>>(url));
+	}
+
+	private async Task CreateGameAsync()
+	{
+		try
+		{
+			var url = "api/games";
+			var result = await GameService.PostAsync(url, newGame);
+			createGameMessage = "Juego creado exitosamente!";
+			await LoadGamesAsync();
+		}
+		catch (Exception ex)
+		{
+			createGameMessage = $"Error al crear el juego: {ex.Message}";
+		}
+	}
+
+	private async Task SearchGameAsync()
+	{
+		searchGameError = null;
+		searchedGame = null;
+
+		try
+		{
+			var url = "api/games";
+			searchedGame = await GameService.GetByIdAsync<GameResponseDTO>(url, searchGameSKU);
+		}
+		catch (Exception ex)
+		{
+			searchGameError = $"Error al buscar el juego: {ex.Message}";
+		}
+	}
+}

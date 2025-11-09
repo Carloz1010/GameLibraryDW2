@@ -32,6 +32,17 @@ namespace GameLibrary.Api
             builder.Services.AddScoped<IGameRepository, GameRepository>();
             builder.Services.AddScoped<IGameService, GameService>();
 
+            // Politica CORS
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAllOrigins", policy =>
+                {
+                    policy.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
+                });
+            });
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -44,8 +55,9 @@ namespace GameLibrary.Api
 
             app.UseHttpsRedirection();
 
-            app.UseAuthorization();
+            app.UseCors("AllowAllOrigins");
 
+            app.UseAuthorization();
 
             app.MapControllers();
 
